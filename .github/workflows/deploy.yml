@@ -1,0 +1,55 @@
+name: Deploy Python App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Check if secret exists
+      - name: Verify secrets
+        run: |
+          missing=0
+
+          if [ -z "${{ secrets.APP_MESSAGE }}" ]; then
+              echo "APP_MESSAGE secret is not set in GitHub repository secrets."
+              echo "Add it under: Settings → Secrets and variables → Actions"
+              missing=1
+          else
+              echo "APP_MESSAGE secret exists."
+          fi
+
+          if [ -z "${{ secrets.APP_HEALTH }}" ]; then
+              echo "APP_HEALTH secret is not set in GitHub repository secrets."
+              echo "Add it under: Settings → Secrets and variables → Actions"
+              missing=1
+          else
+              echo "APP_HEALTH secret exists."
+          fi
+
+          if [ "$missing" -ne 0 ]; then
+            echo "One or more required secrets are missing. Add them under:"
+            echo "Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+
+      # Create .env file from secret
+      - name: Create .env file from secrets
+        run: |
+          echo "APP_MESSAGE=${{ secrets.APP_MESSAGE }}" > .env
+          echo "APP_HEALTH=${{ secrets.APP_HEALTH }}" > .env
+
+      # (Optional) view .env file contents (for debug, without secrets)
+      - name: Confirm .env file created
+        run: cat .env | sed 's/=.*/=<hidden>/'
+
+      # Build and run Docker container
+      - name: Build and run Docker container
+        run: docker compose up --build -d
